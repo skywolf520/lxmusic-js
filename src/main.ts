@@ -13,6 +13,7 @@ import { registerSearchHandlers } from './handlers/search';
 import { registerSourceHandlers } from './handlers/source';
 import { registerSonglistHandlers } from './handlers/songlist';
 import { registerLeaderboardHandlers } from './handlers/leaderboard';
+import { registerSettingsHandlers } from './handlers/settings';
 
 // 导入 musicsdk
 import {
@@ -93,6 +94,7 @@ async function onInit(): Promise<void> {
   registerSourceHandlers(router, sourceManager, runtimeManager, pluginID);
   registerSonglistHandlers(router, registry);
   registerLeaderboardHandlers(router, registry);
+  registerSettingsHandlers(router);
 
   // 7. 异步加载已启用的音源
   const enabledSources = sourceManager.getEnabledSources();
