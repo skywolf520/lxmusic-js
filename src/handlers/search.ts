@@ -20,6 +20,7 @@ import type { Registry } from '@songloft/musicsdk/dist/index.js';
 import type { RuntimeManager } from '../engine/manager';
 import { callHostAPI } from '../utils/http';
 import type { ImportSongsRequest, ImportSongItem } from '../types';
+import { getConfig } from '../config';
 import { successResponse, errorResponse } from './response';
 
 /** lxmusic source_data 结构:opaque 给主程序看,内部包含解析 URL 所需全部信息 */
@@ -456,16 +457,22 @@ export function registerSearchHandlers(
       };
     }
 
-    const quality = String(body.quality || '320k').trim();
+    // 读取插件配置：音质始终使用默认值（忽略 MIoT 调用方传入的 quality）
+    const config = await getConfig();
+    const quality = config.defaultQuality;
     const sourceFilter = String(body.source || '').trim();
 
-    // 确定要搜索的平台列表
+    // 确定要搜索的平台列表：请求中指定了 source 则尊重，否则使用配置的默认平台
     let platforms: string[];
     if (sourceFilter) {
       platforms = [sourceFilter];
     } else {
-      platforms = registry.all().map(p => p.id);
+      platforms = config.defaultPlatforms.length > 0
+        ? config.defaultPlatforms
+        : registry.all().map(p => p.id);
     }
+
+    songloft.log.info(`[TopOne] keyword="${keyword}", quality=${quality}, platforms=[${platforms.join(',')}]`);
 
     for (const platform of platforms) {
       const searcher = registry.get(platform);
