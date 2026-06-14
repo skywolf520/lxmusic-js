@@ -1,0 +1,20 @@
+{
+  "name": "lxmusic",
+  "version": "2026.5.28",
+  "description": "洛雪音源 - 多平台音乐搜索、歌单管理、音源管理",
+  "private": true,
+  "scripts": {
+    "build": "songloft-plugin build",
+    "dev": "songloft-plugin dev",
+    "validate": "songloft-plugin validate",
+    "publish:release": "songloft-plugin publish"
+  },
+  "devDependencies": {
+    "@songloft/plugin-builder": "^2.0.0-alpha.1",
+    "@songloft/plugin-sdk": "^2.0.0-alpha.1",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "@songloft/musicsdk": "^2.0.0-alpha.1"
+  }
+}
