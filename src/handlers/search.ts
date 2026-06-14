@@ -464,7 +464,7 @@ export function registerSearchHandlers(
     if (sourceFilter) {
       platforms = [sourceFilter];
     } else {
-      platforms = registry.all() as unknown as string[];
+      platforms = registry.all().map(p => p.id);
     }
 
     for (const platform of platforms) {
