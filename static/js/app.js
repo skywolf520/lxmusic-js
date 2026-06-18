@@ -22,6 +22,29 @@ let lbIsImporting = false;    // 排行榜页同上
 // 跨页持久选择
 const selectedSongs = new Map();
 
+// ============ 平台名称映射 ============
+
+function getPlatformName(source) {
+    const names = { kg: '酷狗', kw: '酷我', tx: 'QQ', wy: '网易', mg: '咪咕' };
+    return names[source] || source || '';
+}
+
+function getQualityLabel(quality) {
+    if (!quality) return '320k';
+    const q = quality.toLowerCase();
+    if (q === 'flac' || q === 'ape' || q === 'wav') return 'Hi-Res';
+    return quality;
+}
+
+function renderBadges(source, quality) {
+    const platformName = getPlatformName(source);
+    const qualityLabel = getQualityLabel(quality);
+    const isHiRes = qualityLabel === 'Hi-Res';
+    const sourceBadge = platformName ? `<span class="source-badge">${escapeHtml(platformName)}</span>` : '';
+    const qualityBadge = `<span class="quality-badge${isHiRes ? ' hi-res' : ''}">${escapeHtml(qualityLabel)}</span>`;
+    return `<div class="result-badges">${sourceBadge}${qualityBadge}</div>`;
+}
+
 // ============ 工具函数 ============
 
 function getAuthToken() {
@@ -212,6 +235,12 @@ function switchToTab(tab) {
             if (listCard) listCard.style.display = 'none';
             if (tagCard) tagCard.style.display = 'none';
         }
+    }
+
+    // 切换到搜索 tab 时，如果没有搜索结果，恢复热门歌曲网格
+    if (tab === 'search' && (!searchResults || searchResults.length === 0)) {
+        const hotCard = document.getElementById('hotSearchCard');
+        if (hotCard) { hotCard.style.opacity = ''; hotCard.style.maxHeight = ''; hotCard.style.overflow = ''; hotCard.style.marginTop = ''; hotCard.style.paddingTop = ''; hotCard.style.transition = ''; }
     }
 
     // 同步播放状态对应的 padding
@@ -596,6 +625,9 @@ async function search(keyword, platformId, page = 1) {
             totalResults = result.data.total || 0;
             renderResults();
             document.getElementById('resultSection').style.display = '';
+            // 搜索后隐藏热门歌曲网格
+            const hotCard = document.getElementById('hotSearchCard');
+            if (hotCard) { hotCard.style.transition = 'opacity .3s, max-height .4s var(--ease-out)'; hotCard.style.opacity = '0'; hotCard.style.maxHeight = '0'; hotCard.style.overflow = 'hidden'; hotCard.style.marginTop = '0'; hotCard.style.paddingTop = '0'; }
             initBackToTop();
         } else {
             showSnackbar('搜索失败: ' + (result.msg || '未知错误'), 'error');
@@ -629,6 +661,8 @@ function renderResults() {
             ? `<img src="${escapeHtml(song.img)}" alt="" loading="lazy" onerror="this.parentNode.innerHTML='<span class=\\'material-symbols-outlined\\'>music_note</span>'">`
             : '<span class="material-symbols-outlined">music_note</span>';
         const playIcon = (srCurrentSong && getSongKey(song) === getSongKey(srCurrentSong) && srIsPlaying) ? 'pause' : 'play_arrow';
+        const badgesHtml = renderBadges(song.source, '320k');
+        const albumHtml = song.album ? `<div class="result-album">${escapeHtml(song.album)}</div>` : '';
         return `
             <div class="result-item${selectedClass}${playingClass} animate-slide-up" data-index="${i}" style="animation-delay:${Math.min(i, 15) * 0.03}s">
                 <input type="checkbox" class="result-checkbox" data-index="${i}" ${checked}
@@ -636,8 +670,10 @@ function renderResults() {
                 <div class="result-thumb">${imgHtml}</div>
                 <div class="result-info">
                     <div class="result-name">${escapeHtml(song.name)}</div>
-                    <div class="result-meta">${escapeHtml(song.singer || '')}${song.album ? ' — ' + escapeHtml(song.album) : ''}</div>
+                    <div class="result-meta">${escapeHtml(song.singer || '')}</div>
+                    ${albumHtml}
                 </div>
+                ${badgesHtml}
                 <div class="result-duration">${formatDuration(song.duration)}</div>
                 <button class="play-btn sr-play-btn" data-index="${i}" title="播放">
                     <span class="material-symbols-outlined">${playIcon}</span>
@@ -873,7 +909,7 @@ async function importSelectedSongs() {
         if (!proceed) { switchToTab('sources'); return; }
     }
 
-    const quality = document.getElementById('qualitySelect').value;
+    const quality = '320k';
     const playlistSelect = document.getElementById('playlistSelect');
     let playlistId = 0;
     let newPlaylistName = '';
@@ -1766,6 +1802,8 @@ function slRenderDetailList() {
             ? `<img src="${escapeHtml(song.img)}" alt="" loading="lazy" onerror="this.parentNode.innerHTML='<span class=\\'material-symbols-outlined\\'>music_note</span>'">`
             : '<span class="material-symbols-outlined">music_note</span>';
         const playIcon = (currentPlaySong && getSongKey(song) === getSongKey(currentPlaySong) && isPlaying) ? 'pause' : 'play_arrow';
+        const badgesHtml = renderBadges(song.source, '320k');
+        const albumHtml = song.album ? `<div class="result-album">${escapeHtml(song.album)}</div>` : '';
         return `
             <div class="result-item${selectedClass}${playingClass} animate-slide-up" data-index="${i}" style="animation-delay:${Math.min(i, 15) * 0.03}s">
                 <input type="checkbox" class="sl-detail-checkbox" data-index="${i}" ${checked}
@@ -1773,8 +1811,10 @@ function slRenderDetailList() {
                 <div class="result-thumb">${imgHtml}</div>
                 <div class="result-info">
                     <div class="result-name">${escapeHtml(song.name)}</div>
-                    <div class="result-meta">${escapeHtml(song.singer || '')}${song.album ? ' — ' + escapeHtml(song.album) : ''}</div>
+                    <div class="result-meta">${escapeHtml(song.singer || '')}</div>
+                    ${albumHtml}
                 </div>
+                ${badgesHtml}
                 <div class="result-duration">${formatDuration(song.duration)}</div>
                 <button class="play-btn" onclick="slPlaySong(${i})" title="播放">
                     <span class="material-symbols-outlined">${playIcon}</span>
@@ -2030,7 +2070,7 @@ async function srPlaySong(index) {
 
     srStopPlay();
 
-    const quality = document.getElementById('qualitySelect')?.value || '320k';
+    const quality = '320k';
 
     const miniPlayer = document.getElementById('miniPlayer');
     const playerLoading = document.getElementById('playerLoading');
@@ -2173,6 +2213,8 @@ function srRenderResults() {
             ? `<img src="${escapeHtml(song.img)}" alt="" loading="lazy" onerror="this.parentNode.innerHTML='<span class=\\'material-symbols-outlined\\'>music_note</span>'">`
             : '<span class="material-symbols-outlined">music_note</span>';
         const playIcon = (srCurrentSong && getSongKey(song) === getSongKey(srCurrentSong) && srIsPlaying) ? 'pause' : 'play_arrow';
+        const badgesHtml = renderBadges(song.source, '320k');
+        const albumHtml = song.album ? `<div class="result-album">${escapeHtml(song.album)}</div>` : '';
         return `
             <div class="result-item${selectedClass}${playingClass} animate-slide-up" data-index="${i}" style="animation-delay:${Math.min(i, 15) * 0.03}s">
                 <input type="checkbox" class="result-checkbox" data-index="${i}" ${checked}
@@ -2180,8 +2222,10 @@ function srRenderResults() {
                 <div class="result-thumb">${imgHtml}</div>
                 <div class="result-info">
                     <div class="result-name">${escapeHtml(song.name)}</div>
-                    <div class="result-meta">${escapeHtml(song.singer || '')}${song.album ? ' — ' + escapeHtml(song.album) : ''}</div>
+                    <div class="result-meta">${escapeHtml(song.singer || '')}</div>
+                    ${albumHtml}
                 </div>
+                ${badgesHtml}
                 <div class="result-duration">${formatDuration(song.duration)}</div>
                 <button class="play-btn sr-play-btn" data-index="${i}" title="播放">
                     <span class="material-symbols-outlined">${playIcon}</span>
@@ -2230,7 +2274,7 @@ async function lbPlaySong(index) {
 
     lbStopPlay();
 
-    const quality = document.getElementById('lbQualitySelect')?.value || '320k';
+    const quality = '320k';
 
     const miniPlayer = document.getElementById('miniPlayer');
     const playerLoading = document.getElementById('playerLoading');
@@ -2374,8 +2418,7 @@ async function slPlaySong(index) {
     // 停止当前播放
     slStopPlay();
 
-    // 获取音质选择
-    const quality = document.getElementById('slQualitySelect')?.value || '320k';
+    const quality = '320k';
 
     // 显示加载状态
     const miniPlayer = document.getElementById('miniPlayer');
@@ -2537,7 +2580,7 @@ async function slImportSelectedSongs() {
         if (!proceed) { switchToTab('sources'); return; }
     }
 
-    const quality = document.getElementById('slQualitySelect').value;
+    const quality = '320k';
     const playlistSelect = document.getElementById('slPlaylistSelect');
     let playlistId = 0;
     let newPlaylistName = '';
@@ -2721,6 +2764,8 @@ function lbRenderList() {
             ? `<img src="${escapeHtml(song.img)}" alt="" loading="lazy" onerror="this.parentNode.innerHTML='<span class=\\'material-symbols-outlined\\'>music_note</span>'">`
             : '<span class="material-symbols-outlined">music_note</span>';
         const playIcon = (lbCurrentSong && getSongKey(song) === getSongKey(lbCurrentSong) && lbIsPlaying) ? 'pause' : 'play_arrow';
+        const badgesHtml = renderBadges(song.source, '320k');
+        const albumHtml = song.album ? `<div class="result-album">${escapeHtml(song.album)}</div>` : '';
         return `
             <div class="result-item${selectedClass}${playingClass} animate-slide-up" data-index="${i}" style="animation-delay:${Math.min(i, 15) * 0.03}s">
                 <input type="checkbox" class="lb-checkbox" data-index="${i}" ${checked}
@@ -2728,8 +2773,10 @@ function lbRenderList() {
                 <div class="result-thumb">${imgHtml}</div>
                 <div class="result-info">
                     <div class="result-name">${escapeHtml(song.name)}</div>
-                    <div class="result-meta">${escapeHtml(song.singer || '')}${song.album ? ' — ' + escapeHtml(song.album) : ''}</div>
+                    <div class="result-meta">${escapeHtml(song.singer || '')}</div>
+                    ${albumHtml}
                 </div>
+                ${badgesHtml}
                 <div class="result-duration">${formatDuration(song.duration)}</div>
                 <button class="play-btn lb-play-btn" data-index="${i}" title="播放">
                     <span class="material-symbols-outlined">${playIcon}</span>
@@ -2851,7 +2898,7 @@ async function lbImportSelectedSongs() {
         if (!proceed) { switchToTab('sources'); return; }
     }
 
-    const quality = document.getElementById('lbQualitySelect').value;
+    const quality = '320k';
     const playlistSelect = document.getElementById('lbPlaylistSelect');
     let playlistId = 0;
     let newPlaylistName = '';
