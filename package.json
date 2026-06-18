@@ -1,6 +1,6 @@
 {
   "name": "lxmusic",
-  "version": "2.3.0",
+  "version": "2.3.1",
   "description": "洛雪音源 - 多平台音乐搜索、歌单管理、音源管理",
   "private": true,
   "scripts": {
