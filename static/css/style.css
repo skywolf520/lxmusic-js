@@ -657,7 +657,44 @@ body {
 .result-info { flex: 1; min-width: 0; }
 .result-name { font-size: 14px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .result-meta { font-size: 12px; color: var(--md-on-surface-variant); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.result-album { font-size: 11px; color: var(--md-on-surface-variant); margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; opacity: .75; }
+.result-album::before { content: '💿 '; font-size: 10px; }
 .result-duration { font-size: 12px; color: var(--md-on-surface-variant); flex-shrink: 0; }
+
+/* ─── Source & Quality Badges ─── */
+.result-badges {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.source-badge, .quality-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: var(--md-radius-full);
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+    letter-spacing: .25px;
+    line-height: 1.4;
+}
+
+.source-badge {
+    background: rgba(66, 133, 244, 0.12);
+    color: #1a73e8;
+}
+
+.quality-badge {
+    background: rgba(255, 193, 7, 0.18);
+    color: #e6a700;
+}
+
+.quality-badge.hi-res {
+    background: linear-gradient(135deg, rgba(255, 193, 7, 0.22), rgba(255, 152, 0, 0.18));
+    color: #f57c00;
+}
 
 /* ─── Source List ─── */
 .source-list { display: flex; flex-direction: column; }
