@@ -956,6 +956,7 @@ document.addEventListener('DOMContentLoaded', function () {
     loadPlaylists();
     checkSourceStatus();
     loadConfig();
+    loadHotSearch();
 
     // 导入音源文件
     document.getElementById('importBtn').addEventListener('click', () => {
@@ -1081,11 +1082,20 @@ let currentPlayerSource = 'sl';
 // 迷你播放器显示/隐藏（同步调整内容区底部边距）
 function showMiniPlayer() {
     const miniPlayer = document.getElementById('miniPlayer');
-    if (miniPlayer) miniPlayer.style.display = '';
+    if (miniPlayer) {
+        miniPlayer.style.display = '';
+        miniPlayer.classList.remove('player-animate-in');
+        void miniPlayer.offsetWidth; // force reflow for animation restart
+        miniPlayer.classList.add('player-animate-in');
+    }
     document.querySelectorAll('.tab-content').forEach(c => c.classList.add('has-mini-player'));
-    // 重置进度环
-    const circle = document.getElementById('playerProgressCircle');
-    if (circle) circle.style.strokeDashoffset = PROGRESS_CIRCUMFERENCE;
+    // 重置线性进度条
+    const bar = document.getElementById('playerProgressBarFill');
+    if (bar) bar.style.width = '0%';
+    const tc = document.getElementById('playerTimeCurrent');
+    const tt = document.getElementById('playerTimeTotal');
+    if (tc) tc.textContent = '0:00';
+    if (tt) tt.textContent = '0:00';
 }
 
 function hideMiniPlayer() {
@@ -1102,26 +1112,104 @@ function syncPlayerPadding() {
     });
 }
 
-// 更新迷你播放器进度环
-const PROGRESS_CIRCUMFERENCE = 125.66;
-
+// 更新迷你播放器线性进度条 + 时间显示
 function updatePlayerProgress() {
     let audioEl = null;
     if (currentPlayerSource === 'sr' && srAudioElement) audioEl = srAudioElement;
     else if (currentPlayerSource === 'lb' && lbAudioElement) audioEl = lbAudioElement;
     else if (currentPlayerSource === 'sl' && audioElement) audioEl = audioElement;
 
-    const circle = document.getElementById('playerProgressCircle');
-    if (!circle) return;
+    const bar = document.getElementById('playerProgressBarFill');
+    const timeCurrent = document.getElementById('playerTimeCurrent');
+    const timeTotal = document.getElementById('playerTimeTotal');
+    if (!bar) return;
 
     if (!audioEl || !audioEl.duration || isNaN(audioEl.duration)) {
-        circle.style.strokeDashoffset = PROGRESS_CIRCUMFERENCE;
+        bar.style.width = '0%';
+        if (timeCurrent) timeCurrent.textContent = '0:00';
+        if (timeTotal) timeTotal.textContent = '0:00';
         return;
     }
 
-    const progress = audioEl.currentTime / audioEl.duration;
-    const offset = PROGRESS_CIRCUMFERENCE * (1 - progress);
-    circle.style.strokeDashoffset = offset;
+    const pct = (audioEl.currentTime / audioEl.duration) * 100;
+    bar.style.width = pct + '%';
+    if (timeCurrent) timeCurrent.textContent = formatDuration(Math.floor(audioEl.currentTime));
+    if (timeTotal) timeTotal.textContent = formatDuration(Math.floor(audioEl.duration));
+}
+
+// 点击进度条跳转播放位置
+function seekPlayerProgress(event) {
+    const bar = event.currentTarget;
+    const rect = bar.getBoundingClientRect();
+    const pct = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
+
+    let audioEl = null;
+    if (currentPlayerSource === 'sr' && srAudioElement) audioEl = srAudioElement;
+    else if (currentPlayerSource === 'lb' && lbAudioElement) audioEl = lbAudioElement;
+    else if (currentPlayerSource === 'sl' && audioElement) audioEl = audioElement;
+
+    if (audioEl && audioEl.duration && !isNaN(audioEl.duration)) {
+        audioEl.currentTime = pct * audioEl.duration;
+    }
+}
+
+// 音量控制
+function onVolumeChange(value) {
+    const vol = parseInt(value) / 100;
+    let audioEl = null;
+    if (currentPlayerSource === 'sr' && srAudioElement) audioEl = srAudioElement;
+    else if (currentPlayerSource === 'lb' && lbAudioElement) audioEl = lbAudioElement;
+    else if (currentPlayerSource === 'sl' && audioElement) audioEl = audioElement;
+    if (audioEl) audioEl.volume = vol;
+}
+
+// 获取当前播放列表和播放函数
+function getCurrentPlayContext() {
+    switch (currentPlayerSource) {
+        case 'sr': return {
+            list: searchResults, current: srCurrentSong, playFn: srPlaySong,
+            shuffleList: typeof srShuffleList !== 'undefined' ? srShuffleList : null,
+            shuffleIndex: typeof srShuffleIndex !== 'undefined' ? srShuffleIndex : -1
+        };
+        case 'lb': return {
+            list: lbSongs, current: lbCurrentSong, playFn: lbPlaySong,
+            shuffleList: typeof lbShuffleList !== 'undefined' ? lbShuffleList : null,
+            shuffleIndex: typeof lbShuffleIndex !== 'undefined' ? lbShuffleIndex : -1
+        };
+        default: return {
+            list: slDetailSongs, current: currentPlaySong, playFn: slPlaySong,
+            shuffleList: typeof slShuffleList !== 'undefined' ? slShuffleList : null,
+            shuffleIndex: typeof slShuffleIndex !== 'undefined' ? slShuffleIndex : -1
+        };
+    }
+}
+
+// 上一首
+function prevCurrentPlayer() {
+    const ctx = getCurrentPlayContext();
+    if (!ctx.list || ctx.list.length === 0) return;
+    if (ctx.shuffleList && ctx.shuffleList.length > 1) {
+        const newIdx = (ctx.shuffleIndex - 1 + ctx.shuffleList.length) % ctx.shuffleList.length;
+        ctx.playFn(ctx.shuffleList[newIdx]);
+    } else {
+        const idx = ctx.list.indexOf(ctx.current);
+        const newIdx = idx <= 0 ? ctx.list.length - 1 : idx - 1;
+        ctx.playFn(newIdx);
+    }
+}
+
+// 下一首
+function nextCurrentPlayer() {
+    const ctx = getCurrentPlayContext();
+    if (!ctx.list || ctx.list.length === 0) return;
+    if (ctx.shuffleList && ctx.shuffleList.length > 1) {
+        const newIdx = (ctx.shuffleIndex + 1) % ctx.shuffleList.length;
+        ctx.playFn(ctx.shuffleList[newIdx]);
+    } else {
+        const idx = ctx.list.indexOf(ctx.current);
+        const newIdx = idx >= ctx.list.length - 1 ? 0 : idx + 1;
+        ctx.playFn(newIdx);
+    }
 }
 
 // 通用播放控制函数（供迷你播放器按钮调用）
@@ -1139,6 +1227,86 @@ function stopCurrentPlayer() {
         case 'lb': lbStopPlay(); break;
         default: slStopPlay(); break;
     }
+}
+
+// ============ 热门歌曲（使用排行榜 API） ============
+
+let hotSearchSongs = [];
+let hotSearchLoaded = false;
+
+async function loadHotSearch() {
+    const grid = document.getElementById('hotSearchGrid');
+    if (!grid) return;
+
+    grid.innerHTML = '<div class="hot-search-loading"><span class="spinner"></span>加载中...</div>';
+
+    try {
+        // 获取第一个平台的排行榜列表
+        const platformId = currentPlatforms.length > 0 ? currentPlatforms[0].id : 'kg';
+        const boardsResult = await apiGet(`/leaderboard/boards?source_id=${platformId}`);
+
+        if (boardsResult.code !== 0 || !boardsResult.data || boardsResult.data.length === 0) {
+            grid.innerHTML = '<div class="hot-search-loading"><span class="material-symbols-outlined" style="font-size:32px;opacity:0.4">music_off</span>暂无热门歌曲</div>';
+            return;
+        }
+
+        // 取第一个榜单（通常是"热歌榜"或"新歌榜"）
+        const firstBoard = boardsResult.data[0];
+        const params = new URLSearchParams({
+            source_id: platformId,
+            board_id: firstBoard.id,
+            page: 1
+        });
+        const listResult = await apiGet(`/leaderboard/list?${params}`);
+
+        if (listResult.code === 0 && listResult.data && listResult.data.list) {
+            hotSearchSongs = listResult.data.list.slice(0, 20);
+            hotSearchLoaded = true;
+            renderHotSearchGrid(platformId);
+        } else {
+            grid.innerHTML = '<div class="hot-search-loading"><span class="material-symbols-outlined" style="font-size:32px;opacity:0.4">music_off</span>加载失败</div>';
+        }
+    } catch (e) {
+        grid.innerHTML = '<div class="hot-search-loading"><span class="material-symbols-outlined" style="font-size:32px;opacity:0.4">error</span>加载失败: ' + escapeHtml(e.message) + '</div>';
+    }
+}
+
+function renderHotSearchGrid(platformId) {
+    const grid = document.getElementById('hotSearchGrid');
+    if (!grid || hotSearchSongs.length === 0) {
+        if (grid) grid.innerHTML = '<div class="hot-search-loading"><span class="material-symbols-outlined" style="font-size:32px;opacity:0.4">music_off</span>暂无热门歌曲</div>';
+        return;
+    }
+
+    grid.innerHTML = hotSearchSongs.map((song, i) => {
+        const rankClass = i < 3 ? ` top-${i + 1}` : '';
+        const name = song.name || '';
+        const singer = song.singer || '';
+        return `
+            <div class="hot-search-item animate-slide-up" style="animation-delay:${Math.min(i, 15) * 0.03}s" onclick="onHotSearchItemClick(${i})">
+                <span class="hot-search-rank${rankClass}">${i + 1}</span>
+                <span class="hot-search-name" title="${escapeHtml(name)} - ${escapeHtml(singer)}">${escapeHtml(name)}</span>
+                <span class="material-symbols-outlined hot-search-icon">search</span>
+            </div>
+        `;
+    }).join('');
+}
+
+function onHotSearchItemClick(index) {
+    const song = hotSearchSongs[index];
+    if (!song) return;
+
+    // 设置搜索关键词
+    const keywordInput = document.getElementById('keyword');
+    if (keywordInput) keywordInput.value = song.name || '';
+
+    // 选择对应平台
+    const platformId = currentPlatforms.length > 0 ? currentPlatforms[0].id : 'kg';
+    const platformSelect = document.getElementById('platformSelect');
+    if (platformSelect) platformSelect.value = platformId;
+
+    // 触发搜索
+    search(song.name || '', platformId, 1);
 }
 
 function initSonglistTab() {
@@ -2761,3 +2929,8 @@ window.slTogglePlay = slTogglePlay;
 window.slStopPlay = slStopPlay;
 window.toggleCurrentPlayer = toggleCurrentPlayer;
 window.stopCurrentPlayer = stopCurrentPlayer;
+window.prevCurrentPlayer = prevCurrentPlayer;
+window.nextCurrentPlayer = nextCurrentPlayer;
+window.seekPlayerProgress = seekPlayerProgress;
+window.onVolumeChange = onVolumeChange;
+window.onHotSearchItemClick = onHotSearchItemClick;
