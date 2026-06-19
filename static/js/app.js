@@ -254,18 +254,23 @@ function switchToTab(tab) {
     if (tab === 'songlist') {
         const detailCard = document.getElementById('slDetailCard');
         const listCard = document.getElementById('slListCard');
-        const tagCard = document.getElementById('slTagCard');
+        const filterBtn = document.getElementById('slFilterBtn');
+        const sortChips = document.getElementById('slSortChips');
         if (detailCard) detailCard.style.display = 'none';
+        slCloseTagDrawer();
         if (slCurrentMode === 'recommend') {
             if (listCard) listCard.style.display = '';
-            if (tagCard) tagCard.style.display = '';
+            if (filterBtn) filterBtn.style.display = '';
+            if (sortChips) sortChips.style.display = '';
         } else if (slCurrentMode === 'search') {
             if (listCard) listCard.style.display = '';
-            if (tagCard) tagCard.style.display = 'none';
+            if (filterBtn) filterBtn.style.display = 'none';
+            if (sortChips) sortChips.style.display = 'none';
         } else {
             // parse 模式没有列表
             if (listCard) listCard.style.display = 'none';
-            if (tagCard) tagCard.style.display = 'none';
+            if (filterBtn) filterBtn.style.display = 'none';
+            if (sortChips) sortChips.style.display = 'none';
         }
     }
 
@@ -1462,20 +1467,22 @@ function switchSonglistMode(mode) {
     const searchWrapper = document.getElementById('slSearchWrapper');
     const parseWrapper = document.getElementById('slParseWrapper');
     const actionBtn = document.getElementById('slActionBtn');
-    const tagCard = document.getElementById('slTagCard');
+    const filterBtn = document.getElementById('slFilterBtn');
+    const sortChips = document.getElementById('slSortChips');
 
     searchWrapper.style.display = 'none';
     parseWrapper.style.display = 'none';
     actionBtn.style.display = 'none';
-    tagCard.style.display = 'none';
+    filterBtn.style.display = 'none';
+    sortChips.style.display = 'none';
 
-    // 切换模式时隐藏详情，显示列表
+    // 切换模式时关闭抽屉、隐藏详情、显示列表
+    slCloseTagDrawer();
     document.getElementById('slDetailCard').style.display = 'none';
 
     if (mode === 'recommend') {
-        if (slTagsLoaded) {
-            tagCard.style.display = '';
-        }
+        filterBtn.style.display = '';
+        sortChips.style.display = '';
         loadSonglistTagsAndList();
     } else if (mode === 'search') {
         searchWrapper.style.display = '';
@@ -1517,7 +1524,7 @@ async function slLoadTags() {
         if (result.code === 0) {
             slTags = result.data;
             slRenderTagChips();
-            document.getElementById('slTagCard').style.display = '';
+            document.getElementById('slFilterBtn').style.display = '';
         }
     } catch (e) {
         console.error('加载标签失败:', e);
@@ -1760,13 +1767,14 @@ async function slOpenDetail(id) {
 
     const detailCard = document.getElementById('slDetailCard');
     const listCard = document.getElementById('slListCard');
-    const tagCard = document.getElementById('slTagCard');
     const detailList = document.getElementById('slDetailList');
 
     detailList.innerHTML = '<div class="empty-state"><span class="material-symbols-outlined">hourglass_empty</span><p>加载中...</p></div>';
     detailCard.style.display = '';
     listCard.style.display = 'none';
-    tagCard.style.display = 'none';
+    document.getElementById('slFilterBtn').style.display = 'none';
+    document.getElementById('slSortChips').style.display = 'none';
+    slCloseTagDrawer();
 
     slSelectedSongs.clear();
     slUpdateSelectedCount();
@@ -1797,11 +1805,12 @@ let slCurrentDetailId = '';
 function slShowDetail() {
     const detailCard = document.getElementById('slDetailCard');
     const listCard = document.getElementById('slListCard');
-    const tagCard = document.getElementById('slTagCard');
 
     detailCard.style.display = '';
     listCard.style.display = 'none';
-    tagCard.style.display = 'none';
+    document.getElementById('slFilterBtn').style.display = 'none';
+    document.getElementById('slSortChips').style.display = 'none';
+    slCloseTagDrawer();
 
     // 渲染歌单信息
     const infoEl = document.getElementById('slDetailInfo');
@@ -1974,19 +1983,16 @@ async function slDetailPageNav(page) {
     }
 }
 
-let slTagCardCollapsed = false;
+function slOpenTagDrawer() {
+    document.getElementById('slTagDrawerOverlay').classList.add('open');
+    document.getElementById('slTagDrawer').classList.add('open');
+}
 
-function slToggleTagCard() {
-    slTagCardCollapsed = !slTagCardCollapsed;
-    const body = document.getElementById('slTagCardBody');
-    const icon = document.querySelector('#slTagToggleBtn .material-symbols-outlined');
-    if (slTagCardCollapsed) {
-        body.style.display = 'none';
-        icon.textContent = 'expand_more';
-    } else {
-        body.style.display = '';
-        icon.textContent = 'expand_less';
-    }
+function slCloseTagDrawer() {
+    const overlay = document.getElementById('slTagDrawerOverlay');
+    const drawer = document.getElementById('slTagDrawer');
+    if (overlay) overlay.classList.remove('open');
+    if (drawer) drawer.classList.remove('open');
 }
 
 function slBackToList() {
@@ -1994,14 +2000,17 @@ function slBackToList() {
     document.getElementById('slDetailCard').style.display = 'none';
     if (slCurrentMode === 'recommend') {
         document.getElementById('slListCard').style.display = '';
-        document.getElementById('slTagCard').style.display = '';
+        document.getElementById('slFilterBtn').style.display = '';
+        document.getElementById('slSortChips').style.display = '';
     } else if (slCurrentMode === 'search') {
         document.getElementById('slListCard').style.display = '';
-        document.getElementById('slTagCard').style.display = 'none';
+        document.getElementById('slFilterBtn').style.display = 'none';
+        document.getElementById('slSortChips').style.display = 'none';
     } else {
         // parse 模式没有列表
         document.getElementById('slListCard').style.display = 'none';
-        document.getElementById('slTagCard').style.display = 'none';
+        document.getElementById('slFilterBtn').style.display = 'none';
+        document.getElementById('slSortChips').style.display = 'none';
     }
     // 同步浏览器历史：如果是从 slOpenDetail pushState 进来的，弹出 detail 状态
     // 用标志位让 popstate 跳过 UI 操作，避免和上面的直接操作重复
