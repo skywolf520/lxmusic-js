@@ -2152,7 +2152,7 @@ async function srPlaySong(index) {
 
     srStopPlay();
 
-    const quality = 'flac';
+    const quality = getBestQuality(song);
 
     const miniPlayer = document.getElementById('miniPlayer');
     const playerLoading = document.getElementById('playerLoading');
@@ -2360,7 +2360,7 @@ async function lbPlaySong(index) {
 
     lbStopPlay();
 
-    const quality = 'flac';
+    const quality = getBestQuality(song);
 
     const miniPlayer = document.getElementById('miniPlayer');
     const playerLoading = document.getElementById('playerLoading');
@@ -2504,7 +2504,7 @@ async function slPlaySong(index) {
     // 停止当前播放
     slStopPlay();
 
-    const quality = 'flac';
+    const quality = getBestQuality(song);
 
     // 显示加载状态
     const miniPlayer = document.getElementById('miniPlayer');
