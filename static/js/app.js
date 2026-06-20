@@ -2171,7 +2171,8 @@ async function srPlaySong(index) {
                     source: song.source,
                     songmid: song.songmid || song.musicId,
                     albumId: song.albumId || song.album_id,
-                    duration: song.duration
+                    duration: song.duration,
+                    hash: song.hash || ''
                 }
             }
         });
@@ -2379,7 +2380,8 @@ async function lbPlaySong(index) {
                     source: song.source,
                     songmid: song.songmid || song.musicId,
                     albumId: song.albumId || song.album_id,
-                    duration: song.duration
+                    duration: song.duration,
+                    hash: song.hash || ''
                 }
             }
         });
@@ -2528,7 +2530,8 @@ async function slPlaySong(index) {
                     name: song.name,
                     singer: song.singer,
                     album: song.album,
-                    duration: song.duration
+                    duration: song.duration,
+                    hash: song.hash || ''
                 }
             }
         });
