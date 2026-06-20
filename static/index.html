@@ -349,89 +349,99 @@
                 <a class="warning-link" onclick="switchToTab('sources')">前往 设置-音源管理 →</a>
             </div>
 
-            <!-- 排行榜操作卡片 -->
-            <div class="card">
-                <div class="card-header">排行榜</div>
-                <div class="search-row">
-                    <select id="lbPlatformSelect" class="select-field" style="width:150px;flex-shrink:0">
-                        <option value="kg" selected>kg</option>
-                        <option value="kw">kw</option>
-                        <option value="tx">tx</option>
-                        <option value="wy">wy</option>
-                        <option value="mg">mg</option>
-                    </select>
-                    <span id="lbLoadStatus" class="text-muted" style="font-size:12px"></span>
-                </div>
-            </div>
-
-            <!-- 排行榜分类卡片 -->
-            <div class="card" id="lbBoardsCard" style="display:none">
-                <div class="card-header">
-                    排行榜分类
-                    <button class="btn-icon" id="lbBoardsToggleBtn" onclick="lbToggleBoardsCard()" title="折叠/展开">
-                        <span class="material-symbols-outlined">expand_less</span>
-                    </button>
-                </div>
-                <div id="lbBoardsCardBody">
-                    <div id="lbBoardChips" class="tag-chips"></div>
-                </div>
-            </div>
-
-            <!-- 歌曲列表卡片 -->
-            <div class="card" id="lbListCard" style="display:none">
-                <div class="card-header">
-                    <button class="btn-icon" onclick="lbBackToBoards()" title="返回">
-                        <span class="material-symbols-outlined">arrow_back</span>
-                    </button>
-                    <span id="lbBoardTitle">歌曲列表</span>
-                </div>
-                <!-- 操作工具栏 -->
-                <div class="toolbar">
-                    <select id="lbPlaylistSelect" class="select-field select-small">
-                        <option value="">不添加到歌单</option>
-                        <option value="__new__">+ 新建歌单...</option>
-                    </select>
-                    <div id="lbNewPlaylistWrapper" style="display:none;flex:1;min-width:160px">
-                        <input type="text" id="lbNewPlaylistName" class="text-field" placeholder="歌单名称">
+            <!-- 排行榜双栏布局 -->
+            <div class="lb-layout">
+                <!-- 左侧边栏：平台选择 + 榜单列表 -->
+                <div class="lb-sidebar">
+                    <div class="lb-sidebar-header">
+                        <span class="lb-sidebar-title">排行榜</span>
+                        <select id="lbPlatformSelect" class="lb-platform-select">
+                            <option value="kg" selected>酷狗</option>
+                            <option value="kw">酷我</option>
+                            <option value="tx">QQ</option>
+                            <option value="wy">网易</option>
+                            <option value="mg">咪咕</option>
+                        </select>
                     </div>
-                    <label class="md-checkbox">
-                        <input type="checkbox" id="lbSelectAll">
-                        <span>全选当前页</span>
-                    </label>
-                    <button id="lbImportBtn" class="btn-filled" disabled>
-                        导入选中
-                        <span id="lbSelectedBadge" class="badge">0</span>
-                    </button>
-                    <button id="lbPlayAllBtn" class="btn-outlined" title="播放全部">
-                        <span class="material-symbols-outlined">play_circle</span>
-                        播放全部
-                    </button>
-                    <button id="lbShuffleBtn" class="btn-outlined" title="随机播放">
-                        <span class="material-symbols-outlined">shuffle</span>
-                        随机播放
-                    </button>
-                </div>
-                <!-- 导入进度 -->
-                <div class="import-progress-inline" id="lbImportProgress" style="display:none">
-                    <div class="progress-linear">
-                        <div class="progress-linear-fill" id="lbProgressFill"></div>
+                    <div class="lb-sidebar-section">
+                        <div class="lb-sidebar-label">榜单列表</div>
+                        <div id="lbBoardList" class="lb-board-list">
+                            <div class="empty-state" style="padding:24px 0"><p style="font-size:12px;color:var(--text-tertiary)">加载中...</p></div>
+                        </div>
                     </div>
-                    <div class="progress-text" id="lbProgressText">准备中...</div>
-                    <details class="import-results-details">
-                        <summary>查看详情</summary>
-                        <div id="lbImportResults" class="import-results"></div>
-                    </details>
+                    <div id="lbLoadStatus" class="lb-sidebar-status"></div>
                 </div>
-                <div class="pagination" id="lbPagination"></div>
-                <div class="result-list-header">
-                    <div class="col-index">#</div>
-                    <div class="col-title">歌曲标题</div>
-                    <div class="col-artist">歌手</div>
-                    <div class="col-album">专辑</div>
-                    <div class="col-duration">时长</div>
-                    <div class="col-actions"></div>
+
+                <!-- 右侧内容区：歌曲列表 -->
+                <div class="lb-content">
+                    <!-- 顶部栏 -->
+                    <div class="lb-content-header">
+                        <div class="lb-content-info">
+                            <span id="lbBoardTitle" class="lb-board-name">请选择榜单</span>
+                            <span id="lbBoardCount" class="lb-board-count"></span>
+                        </div>
+                        <div class="lb-content-actions">
+                            <button id="lbPlayAllBtn" class="btn-play-all" title="播放全部" style="display:none">
+                                <span class="material-symbols-outlined">play_arrow</span>播放全部
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 导入工具栏（折叠式） -->
+                    <div id="lbImportToolbar" class="lb-import-toolbar" style="display:none">
+                        <select id="lbPlaylistSelect" class="select-field select-small">
+                            <option value="">不添加到歌单</option>
+                            <option value="__new__">+ 新建歌单...</option>
+                        </select>
+                        <div id="lbNewPlaylistWrapper" style="display:none;flex:1;min-width:120px">
+                            <input type="text" id="lbNewPlaylistName" class="text-field" placeholder="歌单名称">
+                        </div>
+                        <label class="md-checkbox">
+                            <input type="checkbox" id="lbSelectAll">
+                            <span>全选</span>
+                        </label>
+                        <button id="lbImportBtn" class="btn-filled btn-sm" disabled>
+                            导入
+                            <span id="lbSelectedBadge" class="badge">0</span>
+                        </button>
+                        <button id="lbShuffleBtn" class="btn-outlined btn-sm" title="随机播放">
+                            <span class="material-symbols-outlined" style="font-size:18px">shuffle</span>
+                        </button>
+                    </div>
+
+                    <!-- 导入进度 -->
+                    <div class="import-progress-inline" id="lbImportProgress" style="display:none">
+                        <div class="progress-linear">
+                            <div class="progress-linear-fill" id="lbProgressFill"></div>
+                        </div>
+                        <div class="progress-text" id="lbProgressText">准备中...</div>
+                        <details class="import-results-details">
+                            <summary>查看详情</summary>
+                            <div id="lbImportResults" class="import-results"></div>
+                        </details>
+                    </div>
+
+                    <!-- 分页 -->
+                    <div class="pagination" id="lbPagination"></div>
+
+                    <!-- 表头 -->
+                    <div class="result-list-header" id="lbListHeader" style="display:none">
+                        <div class="col-index">#</div>
+                        <div class="col-title">歌曲标题</div>
+                        <div class="col-artist">歌手</div>
+                        <div class="col-album">专辑</div>
+                        <div class="col-duration">时长</div>
+                        <div class="col-actions"></div>
+                    </div>
+
+                    <!-- 歌曲列表 -->
+                    <div id="lbSongList" class="result-list">
+                        <div class="empty-state">
+                            <span class="material-symbols-outlined">leaderboard</span>
+                            <p>选择左侧榜单查看歌曲</p>
+                        </div>
+                    </div>
                 </div>
-                <div id="lbSongList" class="result-list"></div>
             </div>
 
         </div>
