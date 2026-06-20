@@ -2735,12 +2735,18 @@ let lbLeaderboardLoaded = false;
 function initLeaderboardTab() {
     document.getElementById('lbPlatformSelect').addEventListener('change', function () {
         lbCurrentPlatform = this.value;
-        document.getElementById('lbBoardsCard').style.display = 'none';
-        document.getElementById('lbListCard').style.display = 'none';
         lbBoards = [];
         lbCurrentBoard = null;
         lbSelectedSongs.clear();
         lbUpdateSelectedCount();
+        // 重置右侧内容区
+        document.getElementById('lbBoardTitle').textContent = '请选择榜单';
+        document.getElementById('lbBoardCount').textContent = '';
+        document.getElementById('lbPlayAllBtn').style.display = 'none';
+        document.getElementById('lbImportToolbar').style.display = 'none';
+        document.getElementById('lbListHeader').style.display = 'none';
+        document.getElementById('lbSongList').innerHTML = '<div class="empty-state"><span class="material-symbols-outlined">leaderboard</span><p>选择左侧榜单查看歌曲</p></div>';
+        document.getElementById('lbPagination').innerHTML = '';
         lbLoadBoards();
     });
 
@@ -2762,8 +2768,7 @@ async function lbLoadBoards() {
         if (result.code === 0) {
             lbBoards = result.data || [];
             lbRenderBoards();
-            document.getElementById('lbBoardsCard').style.display = '';
-            statusEl.textContent = lbBoards.length > 0 ? `共 ${lbBoards.length} 个排行榜` : '暂无可用排行榜';
+            statusEl.textContent = lbBoards.length > 0 ? `${lbBoards.length} 个榜单` : '';
             lbLeaderboardLoaded = true;
         } else {
             showSnackbar('加载排行榜失败: ' + (result.msg || '未知错误'), 'error');
@@ -2775,18 +2780,21 @@ async function lbLoadBoards() {
 }
 
 function lbRenderBoards() {
-    const container = document.getElementById('lbBoardChips');
+    const container = document.getElementById('lbBoardList');
     if (lbBoards.length === 0) {
-        container.innerHTML = '<div class="empty-state"><span class="material-symbols-outlined">leaderboard</span><p>暂无可用排行榜</p></div>';
+        container.innerHTML = '<div class="empty-state" style="padding:24px 16px"><p style="font-size:12px;color:var(--text-tertiary)">暂无可用排行榜</p></div>';
         return;
     }
     container.innerHTML = lbBoards.map(b =>
-        `<button class="tag-chip" data-board-id="${escapeHtml(b.id)}">${escapeHtml(b.name)}</button>`
+        `<div class="lb-board-item" data-board-id="${escapeHtml(b.id)}">${escapeHtml(b.name)}</div>`
     ).join('');
-    container.querySelectorAll('.tag-chip').forEach(chip => {
-        chip.addEventListener('click', function () {
+    container.querySelectorAll('.lb-board-item').forEach(item => {
+        item.addEventListener('click', function () {
+            // 高亮当前选中项
+            container.querySelectorAll('.lb-board-item').forEach(el => el.classList.remove('active'));
+            this.classList.add('active');
+
             const newBoard = lbBoards.find(b => b.id === this.dataset.boardId);
-            // 切换榜单时清空之前的选择
             if (!lbCurrentBoard || lbCurrentBoard.id !== this.dataset.boardId) {
                 lbSelectedSongs.clear();
                 lbUpdateSelectedCount();
@@ -2795,6 +2803,15 @@ function lbRenderBoards() {
             lbLoadList(1);
         });
     });
+    // 自动选中第一个榜单
+    if (lbBoards.length > 0) {
+        const firstItem = container.querySelector('.lb-board-item');
+        if (firstItem) {
+            firstItem.classList.add('active');
+            lbCurrentBoard = lbBoards[0];
+            lbLoadList(1);
+        }
+    }
 }
 
 async function lbLoadList(page) {
@@ -2804,11 +2821,12 @@ async function lbLoadList(page) {
     // 清理旧的导入进度
     resetImportProgress('lbImportProgress', 'lbProgressFill', 'lbProgressText', 'lbImportResults');
 
-    const listCard = document.getElementById('lbListCard');
     const songList = document.getElementById('lbSongList');
-    listCard.style.display = '';
-    document.getElementById('lbBoardsCard').style.display = 'none';
     document.getElementById('lbBoardTitle').textContent = lbCurrentBoard.name;
+    document.getElementById('lbBoardCount').textContent = '';
+    document.getElementById('lbPlayAllBtn').style.display = '';
+    document.getElementById('lbImportToolbar').style.display = 'flex';
+    document.getElementById('lbListHeader').style.display = '';
     songList.innerHTML = '<div class="empty-state"><span class="material-symbols-outlined">hourglass_empty</span><p>加载中...</p></div>';
 
     try {
@@ -2821,6 +2839,7 @@ async function lbLoadList(page) {
         if (result.code === 0) {
             lbSongs = result.data.list || [];
             lbTotal = result.data.total || 0;
+            document.getElementById('lbBoardCount').textContent = lbTotal > 0 ? `· ${lbTotal} 首` : '';
             lbRenderList();
             initBackToTop();
         } else {
@@ -2954,24 +2973,7 @@ function lbJumpToPage(val, totalPages) {
     }
 }
 
-function lbBackToBoards() {
-    document.getElementById('lbListCard').style.display = 'none';
-    document.getElementById('lbBoardsCard').style.display = '';
-    lbCurrentBoard = null;
-}
-
-function lbToggleBoardsCard() {
-    lbBoardsCardCollapsed = !lbBoardsCardCollapsed;
-    const body = document.getElementById('lbBoardsCardBody');
-    const icon = document.querySelector('#lbBoardsToggleBtn .material-symbols-outlined');
-    if (lbBoardsCardCollapsed) {
-        body.style.display = 'none';
-        icon.textContent = 'expand_more';
-    } else {
-        body.style.display = '';
-        icon.textContent = 'expand_less';
-    }
-}
+// lbBackToBoards 和 lbToggleBoardsCard 已废弃（新布局始终显示侧边栏）
 
 async function lbImportSelectedSongs() {
     if (lbIsImporting) return;
@@ -3048,8 +3050,7 @@ window.switchToTab = switchToTab;
 window.slOpenTagDrawer = slOpenTagDrawer;
 window.slCloseTagDrawer = slCloseTagDrawer;
 window.slBackToList = slBackToList;
-window.lbToggleBoardsCard = lbToggleBoardsCard;
-window.lbBackToBoards = lbBackToBoards;
+// lbToggleBoardsCard / lbBackToBoards removed - new layout always shows sidebar
 window.toggleSource = toggleSource;
 window.deleteSource = deleteSource;
 window.search = search;
