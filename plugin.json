@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/songloft-org/plugin-toolchain/main/schemas/plugin.schema.json",
   "name": "洛雪音源",
-  "version": "2.4.8",
+  "version": "2.5.0",
   "description": "洛雪音源 - 多平台音乐搜索、歌单管理、音源管理",
   "author": "LX Team",
   "homepage": "https://github.com/yuanruiyang/lxmusic-js",
@@ -18,7 +18,7 @@
     "jsenv"
   ],
   "updateUrl": "https://raw.githubusercontent.com/yuanruiyang/lxmusic-js/main/plugin.json",
-  "download_url": "https://github.com/yuanruiyang/lxmusic-js/releases/download/v2.4.8/lxmusic.jsplugin.zip",
+  "download_url": "https://github.com/yuanruiyang/lxmusic-js/releases/download/v2.5.0/lxmusic.jsplugin.zip",
   "entryHash": "a7428899830f1e2614faaac83a339f6c33319ab0a848d08484efecefa34c3cd3",
-  "zipHash": "f9153e549f22aa1c593d9bfbe5a0dd2288c2595e18421d9591cc9347695ba4fa"
+  "zipHash": "8442ebcbd8755ae35dcf2e0e438da4b69474d864c2fbe9870b922aa04b823769"
 }
