@@ -1166,7 +1166,7 @@ let currentSpeedIndex = 2; // 默认 1.0x
 let fullPlayerOpen = false;
 let parsedLyrics = [];      // [{time: ms, text: string}]
 let currentLyricIndex = -1;
-let lyricsLoading = false;
+let lyricsRequestId = 0;     // 请求令牌，每次新请求递增，旧请求响应到达时检查是否过期
 let lyricsCache = {};        // songKey -> lrc string
 
 // 迷你播放器显示/隐藏（同步调整内容区底部边距）
@@ -1349,19 +1349,23 @@ function updatePlayerDisplay(song) {
     const qualityLabel = getQualityLabel(quality);
 
     // 迷你播放器
+    const coverEl = document.getElementById('playerCover');
     const nameEl = document.getElementById('playerName');
     const singerEl = document.getElementById('playerSinger');
     const badgesEl = document.getElementById('playerBadges');
     const statusEl = document.getElementById('playerStatus');
+    if (coverEl) coverEl.src = song.img || '';
     if (nameEl) nameEl.textContent = song.name || '';
     if (singerEl) singerEl.textContent = song.singer || '';
     if (badgesEl) badgesEl.innerHTML = renderBadges(song.source, quality);
     if (statusEl) statusEl.textContent = qualityLabel ? '播放中 (' + qualityLabel + ')' : '播放中';
 
     // 全屏播放器
+    const fpCover = document.getElementById('fpCover');
     const fpName = document.getElementById('fpName');
     const fpSinger = document.getElementById('fpSinger');
     const fpBadges = document.getElementById('fpBadges');
+    if (fpCover) fpCover.src = song.img || '';
     if (fpName) fpName.textContent = song.name || '';
     if (fpSinger) fpSinger.textContent = song.singer || '';
     if (fpBadges) fpBadges.innerHTML = renderBadges(song.source, quality);
@@ -1434,8 +1438,6 @@ function toggleFullPlayer() {
         // 同步当前歌曲信息到全屏
         const song = getActiveSong();
         if (song) {
-            const fpCover = document.getElementById('fpCover');
-            if (fpCover) fpCover.src = song.img || '';
             updatePlayerDisplay(song);
             // 获取歌词
             fetchAndDisplayLyrics(song);
@@ -1482,14 +1484,14 @@ async function fetchAndDisplayLyrics(song) {
     const lyricsEl = document.getElementById('fpLyrics');
 
     // 检查缓存
-    if (lyricsCache[key]) {
+    if (lyricsCache[key] !== undefined) {
         parsedLyrics = parseLRC(lyricsCache[key]);
         renderLyricsLines(lyricsEl);
         return;
     }
 
-    if (lyricsLoading) return;
-    lyricsLoading = true;
+    // 递增请求令牌，取消旧请求
+    const myRequestId = ++lyricsRequestId;
 
     if (lyricsEl) lyricsEl.innerHTML = '<div class="fp-lyrics-placeholder">歌词加载中...</div>';
 
@@ -1507,16 +1509,20 @@ async function fetchAndDisplayLyrics(song) {
         if (song.duration) params.set('duration', String(song.duration));
 
         const resp = await apiGet('/direct/lyric?' + params.toString());
+
+        // 检查是否已被更新的请求取代
+        if (myRequestId !== lyricsRequestId) return;
+
         const lrc = resp?.data?.lyric || resp?.lyric || '';
         lyricsCache[key] = lrc;
         parsedLyrics = parseLRC(lrc);
         renderLyricsLines(lyricsEl);
     } catch (e) {
+        if (myRequestId !== lyricsRequestId) return;
         console.error('歌词获取失败:', e);
         if (lyricsEl) lyricsEl.innerHTML = '<div class="fp-lyrics-placeholder">暂无歌词</div>';
         parsedLyrics = [];
-    } finally {
-        lyricsLoading = false;
+        lyricsCache[key] = '';
     }
 }
 
