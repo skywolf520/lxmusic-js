@@ -179,6 +179,30 @@ function toSearchResultItem(item: Record<string, unknown>, platform: string, qua
 }
 
 /**
+ * 把 raw search item + SearchResultItem 转成 ImportSongItem,
+ * 供 buildDedupKey / buildLyricURL 在 topone 等场景复用。
+ */
+function rawToImportSongItem(raw: Record<string, unknown>, sr: SearchResultItem, platform: string): ImportSongItem {
+  const sd = sr.source_data as unknown as LxSourceData;
+  const si = sd.songInfo;
+  return {
+    name: sr.title,
+    singer: sr.artist,
+    source: platform,
+    musicId: String(si.musicId || raw.musicId || raw.MusicID || raw.songmid || raw.Songmid || ''),
+    album: sr.album,
+    duration: sr.duration,
+    img: sr.cover_url,
+    songmid: String(si.songmid || raw.songmid || raw.Songmid || raw.musicId || raw.MusicID || ''),
+    hash: String(si.hash || raw.hash || raw.Hash || ''),
+    copyrightId: String(si.copyrightId || raw.copyrightId || raw.CopyrightId || ''),
+    strMediaMid: String(si.strMediaMid || raw.strMediaMid || raw.StrMediaMid || ''),
+    albumMid: String(si.albumMid || raw.albumMid || raw.AlbumMid || ''),
+    albumId: String(si.albumId || raw.albumId || raw.AlbumID || ''),
+  };
+}
+
+/**
  * 注册搜索和导入相关路由(新形态)
  * POST /api/search          → 多平台搜索(返回 source_data)
  * GET  /api/platforms       → 列出可用平台
@@ -443,8 +467,9 @@ export function registerSearchHandlers(
 
   // ===== TopOne 外部搜索接口（MIoT 兼容） =====
   // POST /api/search/topone — 一次返回搜索结果 + 播放 URL
-  // body: { keyword, hint?: {title, artist, duration}, quality?, source? }
-  // 返回: { code, msg, data: { title, artist, album, duration, cover_url, url, source_data } }
+  // body: { keyword, hint?: {title, artist, duration}, quality?, source?, page_size? }
+  // 单结果模式（page_size 缺失或 =1）：返回 { code, msg, data: { ... } }
+  // 多结果模式（page_size > 1）：返回 { code, msg, data: [ ... ] }
 
   router.post('/api/search/topone', async (req: HTTPRequest) => {
     const body = parseBody(req);
@@ -461,6 +486,8 @@ export function registerSearchHandlers(
     const config = await getConfig();
     const quality = config.defaultQuality;
     const sourceFilter = String(body.source || '').trim();
+    const pageSize = typeof body.page_size === 'number' && body.page_size > 0 ? body.page_size : 1;
+    const multiMode = pageSize > 1;
 
     // 确定要搜索的平台列表：请求中指定了 source 则尊重，否则使用配置的默认平台
     let platforms: string[];
@@ -472,42 +499,80 @@ export function registerSearchHandlers(
         : registry.all().map(p => p.id);
     }
 
-    songloft.log.info(`[TopOne] keyword="${keyword}", quality=${quality}, platforms=[${platforms.join(',')}]`);
+    songloft.log.info(`[TopOne] keyword="${keyword}", quality=${quality}, platforms=[${platforms.join(',')}], pageSize=${pageSize}`);
+
+    // 收集所有候选：跨平台搜索，解析 URL
+    interface TopOneCandidate {
+      title: string;
+      artist: string;
+      album: string;
+      duration: number;
+      cover_url: string;
+      url: string;
+      music_source: string;
+      lyric: string;
+      lyric_source: string;
+      plugin_entry_path: string;
+      dedup_key: string;
+      source_data: Record<string, unknown>;
+    }
+
+    const candidates: TopOneCandidate[] = [];
 
     for (const platform of platforms) {
       const searcher = registry.get(platform);
       if (!searcher) continue;
 
+      // 多结果模式每平台取更多条
+      const perPlatformLimit = multiMode ? Math.min(pageSize, 10) : 5;
+
       try {
-        const result = await searcher.search(keyword, 1, 5);
+        const result = await searcher.search(keyword, 1, perPlatformLimit);
         const items: Record<string, unknown>[] =
           ((result as any)?.list || (result as any)?.songs || []) as Record<string, unknown>[];
 
         for (const item of items) {
+          if (multiMode && candidates.length >= pageSize) break;
+
           const sr = toSearchResultItem(item, platform, quality);
           if (!sr) continue;
 
-          // 构造 songInfo 用于获取播放 URL
           const sd = sr.source_data as unknown as LxSourceData;
           try {
             const url = await runtimeManager.getMusicUrl(platform, quality, sd.songInfo);
-            if (url) {
-              songloft.log.info(`[TopOne] "${keyword}" → ${sr.title} - ${sr.artist} (${platform})`);
+            if (!url) continue;
+
+            // 构造 ImportSongItem 用于生成 dedup_key 和 lyric URL
+            const importItem = rawToImportSongItem(item, sr, platform);
+            const dedupKey = buildDedupKey(importItem);
+            const lyricURL = buildLyricURL(registry, importItem);
+
+            candidates.push({
+              title: sr.title,
+              artist: sr.artist,
+              album: sr.album,
+              duration: sr.duration,
+              cover_url: sr.cover_url,
+              url,
+              music_source: platform,
+              lyric: lyricURL,
+              lyric_source: lyricURL ? 'url' : '',
+              plugin_entry_path: 'lxmusic',
+              dedup_key: dedupKey,
+              source_data: sr.source_data as Record<string, unknown>,
+            });
+
+            songloft.log.info(`[TopOne] "${keyword}" → ${sr.title} - ${sr.artist} (${platform})`);
+
+            // 单结果模式：找到第一个就返回（向后兼容）
+            if (!multiMode) {
               return {
                 statusCode: 200,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                   code: 0,
                   msg: 'success',
-                  data: {
-                    title: sr.title,
-                    artist: sr.artist,
-                    album: sr.album,
-                    duration: sr.duration,
-                    cover_url: sr.cover_url,
-                    url,
-                    source_data: sr.source_data,
-                  },
+                  data: candidates[0],
                 }),
               };
             }
@@ -518,6 +583,22 @@ export function registerSearchHandlers(
       } catch (e: any) {
         songloft.log.warn(`[TopOne] platform ${platform} search failed: ${e.message || e}`);
       }
+    }
+
+    // 多结果模式：返回数组
+    if (multiMode) {
+      if (candidates.length === 0) {
+        return {
+          statusCode: 200,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code: 404, msg: 'No results with playable URL', data: null }),
+        };
+      }
+      return {
+        statusCode: 200,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: 0, msg: 'success', data: candidates }),
+      };
     }
 
     return {
