@@ -519,12 +519,16 @@ export function registerSearchHandlers(
 
     const candidates: TopOneCandidate[] = [];
 
+    // 多结果模式下限制 URL 解析数量（每条 ~200ms），避免超过 MIoT 3 秒超时。
+    // 3 条足够供用户选择版本/平台，总耗时 < 1 秒。
+    const maxUrlResolves = multiMode ? 3 : 1;
+
     for (const platform of platforms) {
       const searcher = registry.get(platform);
       if (!searcher) continue;
 
-      // 多结果模式每平台取更多条
-      const perPlatformLimit = multiMode ? Math.min(pageSize, 10) : 5;
+      // 每平台搜索条数：多结果模式多取几条（有些 URL 解析会失败），单结果模式取 5 条
+      const perPlatformLimit = multiMode ? 5 : 5;
 
       try {
         const result = await searcher.search(keyword, 1, perPlatformLimit);
@@ -532,7 +536,8 @@ export function registerSearchHandlers(
           ((result as any)?.list || (result as any)?.songs || []) as Record<string, unknown>[];
 
         for (const item of items) {
-          if (multiMode && candidates.length >= pageSize) break;
+          // 已收集足够候选，停止解析
+          if (candidates.length >= maxUrlResolves) break;
 
           const sr = toSearchResultItem(item, platform, quality);
           if (!sr) continue;
