@@ -519,16 +519,16 @@ export function registerSearchHandlers(
 
     const candidates: TopOneCandidate[] = [];
 
-    // 多结果模式下限制 URL 解析数量（每条 ~200ms），避免超过 MIoT 3 秒超时。
-    // 3 条足够供用户选择版本/平台，总耗时 < 1 秒。
-    const maxUrlResolves = multiMode ? 3 : 1;
+    // 多结果模式下按 page_size 决定 URL 解析数量（每条 ~200ms），上限 10 条。
+    // MIoT 两阶段搜索的阶段2有独立 10 秒超时，10 条约 2 秒完全可接受。
+    const maxUrlResolves = multiMode ? Math.min(pageSize, 10) : 1;
 
     for (const platform of platforms) {
       const searcher = registry.get(platform);
       if (!searcher) continue;
 
       // 每平台搜索条数：多结果模式多取几条（有些 URL 解析会失败），单结果模式取 5 条
-      const perPlatformLimit = multiMode ? 5 : 5;
+      const perPlatformLimit = multiMode ? Math.max(5, Math.ceil(maxUrlResolves / platforms.length) + 2) : 5;
 
       try {
         const result = await searcher.search(keyword, 1, perPlatformLimit);
